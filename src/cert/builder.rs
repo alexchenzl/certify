@@ -35,7 +35,8 @@ const KEY_USAGE: &[Usage] = &[
 
 pub struct Cert(pub Certificate);
 
-const CERT_DEFAULT_DURATION: i64 = 180; // 180 days
+const CERT_DEFAULT_DURATION: i64 = 180;
+// 180 days
 const CA_DEFAULT_DURATION: i64 = 10 * 365; // approx 10 years
 
 impl Cert {
@@ -91,6 +92,7 @@ pub enum CertType {
     Client,
     Server,
     CA,
+    P2P,
 }
 
 impl CertInfo {
@@ -151,6 +153,11 @@ impl CertInfo {
                 params.custom_extensions.push(CertInfo::not_ca());
                 params.custom_extensions.push(CertInfo::key_usage(false));
             }
+            CertType::P2P => {
+                params.extended_key_usages = vec![ClientAuth, ServerAuth];
+                params.custom_extensions.push(CertInfo::not_ca());
+                params.custom_extensions.push(CertInfo::key_usage(false));
+            }
         }
 
         params
@@ -169,6 +176,11 @@ impl CertInfo {
 
     pub fn server_cert(&self, keypair: Option<KeyPair>) -> Result<Cert, CertifyError> {
         let params = self.build_cert_params(keypair, CertType::Server);
+        Cert::from_params(params)
+    }
+
+    pub fn p2p_cert(&self, keypair: Option<KeyPair>) -> Result<Cert, CertifyError> {
+        let params = self.build_cert_params(keypair, CertType::P2P);
         Cert::from_params(params)
     }
 

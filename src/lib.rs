@@ -43,7 +43,7 @@ pub fn generate_cert(
     cn: &str,
     sig_algo: CertSigAlgo,
     pem_str: Option<&str>,
-    is_client: bool,
+    cert_type: u32,
     days: Option<i64>,
 ) -> Result<(String, String), CertifyError> {
     let params = CertInfo::new(
@@ -59,11 +59,19 @@ pub fn generate_cert(
         Some(v) => Some(KeyPair::from_pem(v)?),
         None => None,
     };
-    let cert = if is_client {
-        params.client_cert(keypair)?
-    } else {
-        params.server_cert(keypair)?
+    // let cert = if is_client {
+    //     params.client_cert(keypair)?
+    // } else {
+    //     params.server_cert(keypair)?
+    // };
+
+    let cert = match cert_type {
+        0 => params.server_cert(keypair)?,
+        1 => params.client_cert(keypair)?,
+        2 => params.p2p_cert(keypair)?,
+        _ => return Err(CertifyError::InvalidCertType(cert_type)),
     };
+
     let (cert_pem, key_pem) = ca.sign_cert(&cert)?;
     Ok((cert_pem, key_pem))
 }
@@ -113,7 +121,7 @@ mod tests {
             "API Server",
             CertSigAlgo::ED25519,
             None,
-            false,
+            0,
             Some(365),
         )?;
 
@@ -137,7 +145,7 @@ mod tests {
             "API Server",
             CertSigAlgo::ED25519,
             Some(server_key_pem),
-            false,
+            0,
             Some(365),
         )?;
 
@@ -147,6 +155,7 @@ mod tests {
 
         Ok(())
     }
+
     #[test]
     fn generate_client_cert_with_ca_should_work() -> Result<(), CertifyError> {
         let (cert, key) = gen_ca(None)?;
@@ -159,7 +168,7 @@ mod tests {
             "awesome_device_id",
             CertSigAlgo::ED25519,
             None,
-            true,
+            1,
             Some(365),
         )?;
 
@@ -184,12 +193,59 @@ mod tests {
             "awesome_device_id",
             CertSigAlgo::ED25519,
             Some(client_key_pem),
-            true,
+            1,
             Some(365),
         )?;
 
         assert_eq!(&client_key, client_key_pem);
         println!("{}\n{}", client_cert, client_key);
+
+        Ok(())
+    }
+
+    #[test]
+    fn generate_p2p_cert_with_ca_should_work() -> Result<(), CertifyError> {
+        let (cert, key) = gen_ca(None)?;
+        let ca = CA::load(&cert, &key)?;
+        let (p2p_cert, p2p_key) = generate_cert(
+            &ca,
+            vec!["app.domain.com"],
+            "US",
+            "Domain Domain Inc.",
+            "API Server",
+            CertSigAlgo::ED25519,
+            None,
+            0,
+            Some(365),
+        )?;
+
+        println!("{}\n{}", p2p_cert, p2p_key);
+
+        Ok(())
+    }
+
+    #[test]
+    fn generate_p2p_cert_with_existing_ca_and_key_should_work() -> Result<(), CertifyError> {
+        let key_pem = include_str!("fixtures/ca_key.pem");
+        let ca_pem = include_str!("fixtures/ca_cert.pem");
+        let p2p_key_pem = include_str!("fixtures/server_key.pem");
+
+        let ca = CA::load(ca_pem, key_pem)?;
+        let (p2p_cert, p2p_key) = generate_cert(
+            &ca,
+            vec!["app.domain.com"],
+            "US",
+            "Domain Domain Inc.",
+            "API Server",
+            CertSigAlgo::ED25519,
+            Some(p2p_key_pem),
+            0,
+            Some(365),
+        )?;
+
+        assert_eq!(&p2p_key, p2p_key_pem);
+
+        println!("{}\n{}", p2p_key, p2p_key);
 
         Ok(())
     }

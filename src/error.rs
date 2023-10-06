@@ -8,4 +8,6 @@ pub enum CertifyError {
     RcgenError(#[from] rcgen::RcgenError),
     #[error("PEM error: {0}")]
     PemError(#[from] pem::PemError),
+    #[error("Invalid cert type {0}")]
+    InvalidCertType(u32),
 }
