@@ -43,7 +43,7 @@ pub fn generate_cert(
     cn: &str,
     sig_algo: CertSigAlgo,
     pem_str: Option<&str>,
-    cert_type: u32,
+    cert_type: CertType,
     days: Option<i64>,
 ) -> Result<(String, String), CertifyError> {
     let params = CertInfo::new(
@@ -66,10 +66,10 @@ pub fn generate_cert(
     // };
 
     let cert = match cert_type {
-        0 => params.server_cert(keypair)?,
-        1 => params.client_cert(keypair)?,
-        2 => params.p2p_cert(keypair)?,
-        _ => return Err(CertifyError::InvalidCertType(cert_type)),
+        CertType::Server => params.server_cert(keypair)?,
+        CertType::Client => params.client_cert(keypair)?,
+        CertType::P2P => params.p2p_cert(keypair)?,
+        _ => return Err(CertifyError::InvalidCertType),
     };
 
     let (cert_pem, key_pem) = ca.sign_cert(&cert)?;
@@ -121,7 +121,7 @@ mod tests {
             "API Server",
             CertSigAlgo::ED25519,
             None,
-            0,
+            CertType::Server,
             Some(365),
         )?;
 
@@ -145,7 +145,7 @@ mod tests {
             "API Server",
             CertSigAlgo::ED25519,
             Some(server_key_pem),
-            0,
+            CertType::Server,
             Some(365),
         )?;
 
@@ -168,7 +168,7 @@ mod tests {
             "awesome_device_id",
             CertSigAlgo::ED25519,
             None,
-            1,
+            CertType::Client,
             Some(365),
         )?;
 
@@ -193,7 +193,7 @@ mod tests {
             "awesome_device_id",
             CertSigAlgo::ED25519,
             Some(client_key_pem),
-            1,
+            CertType::Client,
             Some(365),
         )?;
 
@@ -215,7 +215,7 @@ mod tests {
             "API Server",
             CertSigAlgo::ED25519,
             None,
-            0,
+            CertType::P2P,
             Some(365),
         )?;
 
@@ -239,7 +239,7 @@ mod tests {
             "API Server",
             CertSigAlgo::ED25519,
             Some(p2p_key_pem),
-            0,
+            CertType::P2P,
             Some(365),
         )?;
 
